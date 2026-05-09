@@ -9,8 +9,8 @@ A multi-cloud Kubernetes platform that automatically detects and recovers from f
 ## Architecture
 
 ```
-Terraform AWS  → Custom VPC (10.0.0.0/16) + subnets + IGW + SGs → Amazon EKS · t3.small · us-east-1
-Terraform Azure → VNet (10.1.0.0/16) + subnet + NSG             → Azure AKS · Standard_DC2s_v3 · East US 2
+Terraform AWS  → Custom VPC + subnets + IGW + SGs → Amazon EKS · t3.small · us-east-1
+Terraform Azure → VNet + subnet + NSG             → Azure AKS · Standard_DC2s_v3 · East US 2
                                   ↓
         k8s: Deployment (3 replicas) + ClusterIP Service + HPA (3–6 replicas, 60% CPU)
                                   ↓
@@ -32,9 +32,8 @@ Terraform Azure → VNet (10.1.0.0/16) + subnet + NSG             → Azure AKS 
 | Cluster name | `healer` | `healer-aks` |
 | Region | us-east-1 | East US 2 |
 | Node size | t3.small (2 vCPU, 2 GB) | Standard_DC2s_v3 (2 vCPU, 8 GB) |
-| Network | VPC 10.0.0.0/16 | VNet 10.1.0.0/16 |
+| Network | Custom VPC | Custom VNet |
 | Control plane cost | $0.10/hr | Free |
-| kubectl context | `arn:aws:eks:us-east-1:288418346263:cluster/healer` | `healer-aks` |
 
 > **Why t3.small on EKS:** t2.micro cannot run EKS — system pods alone consume ~700 MB of the 1 GB available, leaving app pods in Pending indefinitely.
 
@@ -99,7 +98,7 @@ az aks get-credentials --resource-group healer-aks-rg --name healer-aks
 
 ```bash
 kubectl config get-contexts
-kubectl get nodes --context=arn:aws:eks:us-east-1:288418346263:cluster/healer
+kubectl get nodes --context=arn:aws:eks:us-east-1:<account-id>:cluster/healer
 kubectl get nodes --context=healer-aks
 ```
 
@@ -118,7 +117,7 @@ helm repo update
 # EKS
 helm install prometheus prometheus-community/prometheus \
   --namespace monitoring --create-namespace \
-  --kube-context=arn:aws:eks:us-east-1:288418346263:cluster/healer \
+  --kube-context=arn:aws:eks:us-east-1:<account-id>:cluster/healer \
   --set alertmanager.enabled=false \
   --set pushgateway.enabled=false \
   --set server.persistentVolume.enabled=false
@@ -139,13 +138,13 @@ helm repo add grafana https://grafana.github.io/helm-charts
 
 helm install grafana grafana/grafana \
   --namespace monitoring \
-  --kube-context=arn:aws:eks:us-east-1:288418346263:cluster/healer \
+  --kube-context=arn:aws:eks:us-east-1:<account-id>:cluster/healer \
   --set persistence.enabled=false
 
 # Retrieve admin password
 kubectl get secret --namespace monitoring grafana \
   -o jsonpath="{.data.admin-password}" \
-  --context=arn:aws:eks:us-east-1:288418346263:cluster/healer | base64 --decode
+  --context=arn:aws:eks:us-east-1:<account-id>:cluster/healer | base64 --decode
 ```
 
 Add Prometheus as a Grafana data source:
@@ -205,5 +204,5 @@ cd terraform/azure && terraform destroy -auto-approve
 ## Author
 
 **Sitha Ram Reddy Kalicheti**  
-M.S. Computer Science — George Mason University  
+M.S. Applied Information Technology — George Mason University  
 [github.com/Ram-kalicheti](https://github.com/Ram-kalicheti)
